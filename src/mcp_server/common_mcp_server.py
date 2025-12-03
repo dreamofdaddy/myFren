@@ -1,5 +1,5 @@
 #%pip install google-search-results
-#python3 common_mcp_server.py (server run command)
+#python common_mcp_server.py (server run command)
 
 import os
 import urllib
@@ -7,7 +7,6 @@ import openai
 import pytz
 import requests
 import json
-import time
 from pykrx import stock
 from dotenv import load_dotenv
 from urllib.parse import quote
@@ -27,13 +26,13 @@ from naver_sens import SensClient
 
 mcp = FastMCP("common_mcp_server", port=8000)
 
-load_dotenv("/home/dody/work/kosa-ict-genai-2025-2nd/src/exercise/dody/.env")
+load_dotenv("D:/projects/myFren/src/.env")
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
-default_model = ChatOpenAI(model=os.getenv("OPENAI_DEFAULT_MODEL"), temperature=0, streaming=True, verbose=True)
+default_model = ChatOpenAI(model=os.getenv("OPENAI_DEFAULT_MODEL"), temperature=0, streaming=True, verbose=True) # type: ignore
 
 FILE_NAME = "./persona.txt"
-loader = TextLoader(FILE_NAME)
+loader = TextLoader(FILE_NAME, encoding="utf-8")
 embeddings_model = OpenAIEmbeddings()
 
 index = VectorstoreIndexCreator(
@@ -41,15 +40,15 @@ index = VectorstoreIndexCreator(
     embedding=embeddings_model,
 ).from_loaders([loader])
 # save to vectorstore.
-index.vectorstore.save_local("persona")
+index.vectorstore.save_local("persona") # type: ignore
 
 access_key = os.getenv("SMS_ACCESS_KEY")
 secret_key = os.getenv("SMS_SECRET_KEY")
 service_key = os.getenv("SMS_SERVICE_KEY")
 sens_client = SensClient(
-    service_id=service_key,
-    access_key=access_key,
-    secret_key=secret_key
+    service_id=service_key, # type: ignore
+    access_key=access_key, # type: ignore
+    secret_key=secret_key # type: ignore
 )
 
 @mcp.tool("private_info")
@@ -94,7 +93,7 @@ async def wikipedia_search(query):
     A wrapper around Wikipedia. Useful for when you need to answer general questions 
     about people, places, companies, facts, historical events, or other subjects. Input should be a search query.
     """
-    wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
+    wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper()) # type: ignore
     print("========= wikipedia_search: "+query)
     return wikipedia.run(query)
 
@@ -103,12 +102,12 @@ async def foodhouse_search(keyword):
     """카페, 레스토랑, 음식점 등 맛집 정보를 반환합니다. 사용자 쿼리 중 맛집 검색을 위한 키워드를 추출하여 파라미터로 전달합니다."""
     client_id = "SvLZxpvr8jnKZ1UzWKDB"
     client_secret = "2Cn80Ux0VV"
-    encText = urllib.parse.quote(keyword)
+    encText = urllib.parse.quote(keyword) # type: ignore
     url = "https://openapi.naver.com/v1/search/blog?query=" + encText # JSON 결과
-    request = urllib.request.Request(url)
+    request = urllib.request.Request(url) # type: ignore
     request.add_header("X-Naver-Client-Id",client_id)
     request.add_header("X-Naver-Client-Secret",client_secret)
-    response = urllib.request.urlopen(request)
+    response = urllib.request.urlopen(request) # type: ignore
     rescode = response.getcode()
     if(rescode==200):
         response_body = response.read()
@@ -191,7 +190,7 @@ async def send_sms_message(rcv_phone_number, subject, send_message):
     subject = "[알림]"+subject
 
     response = sens_client.send_message(
-        from_num=sndr_phone_number,     # 발신번호
+        from_num=sndr_phone_number,     # 발신번호 # type: ignore
         to_num=rcv_phone_number,        # 수신번호
         content=send_message,           # 문자내용
         subject=subject
@@ -212,7 +211,7 @@ async def alarm_reservation(rcv_phone_number, subject, send_message, reservation
     subject = "[알림]"+subject
 
     response = sens_client.send_message(
-        from_num=sndr_phone_number,     # 발신번호
+        from_num=sndr_phone_number,     # 발신번호 # type: ignore
         to_num=rcv_phone_number,        # 수신번호
         content=send_message,           # 문자내용
         subject=subject,
@@ -236,11 +235,11 @@ async def send_emergency_call(emergency_message):
     subject = "[응급구조요청]도움이 필요합니다."
 
     emergency_phone_numbers = os.getenv("EMERGENCY_PHONE_NUMBER")
-    rcv_phone_numbers = emergency_phone_numbers.split(",")
+    rcv_phone_numbers = emergency_phone_numbers.split(",") # type: ignore
     for rcv_phone_number in rcv_phone_numbers:
         try:
             response = sens_client.send_message(
-                from_num=sndr_phone_number,     # 발신번호
+                from_num=sndr_phone_number,     # 발신번호 # type: ignore
                 to_num=rcv_phone_number,        # 수신번호
                 content=emergency_message,           # 문자내용
                 subject=subject
