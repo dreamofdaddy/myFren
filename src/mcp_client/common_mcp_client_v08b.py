@@ -1,5 +1,7 @@
+#streamlit run common_mcp_client_v08b.py
 import asyncio
 import nest_asyncio
+import uuid
 import os
 import streamlit as st
 from pathlib import Path
@@ -11,8 +13,8 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, RemoveMessage
-from langgraph.graph import START, StateGraph, MessagesState
-from langgraph.graph import END
+from langgraph.graph import START, StateGraph, MessagesState 
+from langgraph.graph import END 
 from langgraph.graph.message import add_messages
 from typing import Annotated, Literal
 from langchain_core.output_parsers import StrOutputParser
@@ -25,12 +27,13 @@ from langchain_core.runnables import RunnableConfig
 
 import speech_recognition as sr
 import edge_tts
+from playsound import playsound
 
 
 # 환경 변수 로드
-load_dotenv("/home/dody/work/kosa-ict-genai-2025-2nd/src/exercise/dody/.env")
+load_dotenv("D:/projects/myFren/src/.env")
 default_model_name = os.getenv("OPENAI_DEFAULT_MODEL", "gpt-4o-mini")
-default_model = ChatOpenAI(model_name=default_model_name, temperature=0)
+default_model = ChatOpenAI(model_name=default_model_name, temperature=0) # type: ignore
 
 # ---------------------------------------------------------------------------
 # Agent 초기화
@@ -74,11 +77,7 @@ def query_classification(state: State) -> Literal["memorizer", "agent"]:
     
     qclass = chain.invoke({"query": query})
     print("===========qclass: ", qclass)
-    if qclass == "REMEMBER":
-        return "memorizer"
-    elif qclass == "UPDATE":
-        return "memorizer"
-    elif qclass == "ETC":
+    if qclass in ["REMEMBER", "UPDATE"]:
         return "memorizer"
     else:
         return "agent"
@@ -149,7 +148,7 @@ def print_update(event):
 @st.cache_resource
 def init_graph(_agent):
     workflow = StateGraph(State)
-    workflow.add_node("agent", lambda s: agent_node(s, _agent))
+    workflow.add_node("agent", lambda s: agent_node(s, _agent)) # type: ignore
     workflow.add_node("memorizer", memorizer)
     workflow.add_node("summarizer", summarizer)
 
@@ -180,8 +179,8 @@ def get_audio_input():
         audio = r.listen(source)
     # 구글 웹 음성 API로 인식하기 
     try:
-        print("Google Speech Recognition thinks you said : " + r.recognize_google(audio, language='ko'))
-        return r.recognize_google(audio, language='ko')
+        print("Google Speech Recognition thinks you said : " + r.recognize_google(audio, language='ko')) # type: ignore
+        return r.recognize_google(audio, language='ko') # type: ignore
     except sr.UnknownValueError as e:
         print("Google Speech Recognition could not understand audio".format(e))
         return None
@@ -190,13 +189,20 @@ def get_audio_input():
         return None
 
 # TTS 
+tts_lock = asyncio.Lock()
 async def text_to_speech(text):
-    voice = "ko-KR-SunHiNeural"   # 여성/남성=ko-KR-InJoonNeural"
-    output_file = "korean_conv_tts.mp3"
+    async with tts_lock:
+        voice = "ko-KR-SunHiNeural"
+        output_file = f"korean_tts_{uuid.uuid4().hex}.mp3"
 
-    tts = edge_tts.Communicate(text, voice, rate="+15%")
-    await tts.save(output_file)
-    os.system(f"mpg123 {output_file}")
+        tts = edge_tts.Communicate(text, voice, rate="+15%")
+        await tts.save(output_file)
+
+        try:
+            playsound(output_file)
+        finally:
+            if os.path.exists(output_file):
+                os.remove(output_file)
 
 
 # ---------------------------------------------------------------------------
@@ -377,7 +383,7 @@ async def main():
     # 복약 확인 대화 상자 (알람이 울렸을 때)
     if st.session_state.pending_medicine_check:
         period = st.session_state.pending_medicine_check
-        elapsed_time = (datetime.now() - st.session_state.medicine_check_time).total_seconds()
+        elapsed_time = (datetime.now() - st.session_state.medicine_check_time).total_seconds() # type: ignore
 
         # 30초 경과 체크
         if elapsed_time < 30:
@@ -388,7 +394,7 @@ async def main():
             col1, col2, col3 = st.columns(3)
             with col1:
                 if st.button("✅ 예, 먹었어요", use_container_width=True, key="medicine_yes"):
-                    st.session_state.messages.append({"role": "user", "content": f"[약 복용 알림] {period} 약 복용 시간({st.session_state.medicine_check_time.strftime('%H:%M')})에 복약이 확인되었습니다. 보호자에게 카톡메세지를 발송합니다."})
+                    st.session_state.messages.append({"role": "user", "content": f"[약 복용 알림] {period} 약 복용 시간({st.session_state.medicine_check_time.strftime('%H:%M')})에 복약이 확인되었습니다. 보호자에게 카톡메세지를 발송합니다."}) # type: ignore
                     response = chat_with_bot(st.session_state.messages, agent_app, "user_id")
                     await text_to_speech("복약이 기록되었습니다!")
                     # 복약 완료 기록
@@ -437,7 +443,7 @@ async def main():
             emergency_phone = os.getenv("EMERGENCY_PHONE_NUMBER", "").split(",")[0]
             if emergency_phone:
                 # MCP 서버의 send_sms_message 호출
-                message = f"[약 복용 알림] {period} 약 복용 시간({st.session_state.medicine_check_time.strftime('%H:%M')})에 복약 확인이 되지 않았습니다. 확인 부탁드립니다."
+                message = f"[약 복용 알림] {period} 약 복용 시간({st.session_state.medicine_check_time.strftime('%H:%M')})에 복약 확인이 되지 않았습니다. 확인 부탁드립니다." # type: ignore
                 
                 # 여기서 실제로 SMS를 보내려면 agent를 통해 Tool 호출해야 하지만,
                 # 간단히 시뮬레이션으로 표시
